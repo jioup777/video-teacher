@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 飞书消息推送脚本
-支持 JSON 和 Markdown 格式
+支持 JSON 和 Markdown 格式，支持 topics 结构
 """
 
 import argparse
@@ -14,14 +14,13 @@ from typing import Dict, List, Optional
 
 
 def extract_articles_from_topics(data: Dict) -> List[Dict]:
-    """从topics结构中提取所有文章"""
+    """从 topics 结构中提取所有文章"""
     articles = []
     topics = data.get("topics", {})
     
     for topic_id, topic_data in topics.items():
         if isinstance(topic_data, dict) and "articles" in topic_data:
             for article in topic_data["articles"]:
-                # 添加topic标签
                 if isinstance(article, dict):
                     article_copy = article.copy()
                     article_copy["topic"] = topic_id
@@ -31,46 +30,56 @@ def extract_articles_from_topics(data: Dict) -> List[Dict]:
 
 
 def format_as_markdown(data: Dict) -> str:
-    """将数据格式化为 Markdown"""
+    """将数据格式化为 Markdown（完整版）"""
     lines = []
     
-    # 标题
     lines.append("# 📰 每日科技新闻摘要")
     lines.append(f"\n**日期:** {datetime.now().strftime('%Y年%m月%d日')}")
     lines.append(f"**时间范围:** 过去 24 小时")
     lines.append("")
     
-    # 统计信息 - 支持两种数据结构
+    # 统计信息
     if "topics" in data:
-        # 新的topics结构
         articles = extract_articles_from_topics(data)
         stats = data.get("output_stats", {})
         lines.append("## 📊 统计")
-        lines.append(f"- RSS 文章: {stats.get('total_articles', len(articles))} 篇")
+        lines.append(f"- RSS 文章：{stats.get('total_articles', len(articles))} 篇")
         lines.append(f"- Topics: {stats.get('topics_count', len(data.get('topics', {})))} 个")
     else:
-        # 旧的articles数组结构
         articles = data.get("articles", [])
         lines.append("## 📊 统计")
-        lines.append(f"- RSS 文章: {len(articles)} 篇")
+        lines.append(f"- RSS 文章：{len(articles)} 篇")
     
     videos = data.get("videos", [])
     if videos:
-        lines.append(f"- YouTube 视频: {len(videos)} 个")
-    
-    lines.append("## 📊 统计")
-    lines.append(f"- RSS 文章: {len(articles)} 篇")
-    lines.append(f"- YouTube 视频: {len(videos)} 个")
+        lines.append(f"- YouTube 视频：{len(videos)} 个")
     lines.append("")
     
-    # RSS 文章（如果有）
-    if articles:
+    # 按主题分组显示文章
+    if "topics" in data:
+        topics = data.get("topics", {})
+        for topic_id, topic_data in topics.items():
+            topic_articles = topic_data.get("articles", [])[:5]
+            if topic_articles:
+                lines.append(f"## {topic_id.upper()}")
+                lines.append("")
+                for article in topic_articles:
+                    title = article.get("title", "无标题")
+                    url = article.get("link") or article.get("url", "")
+                    source = article.get("source_name", "")
+                    
+                    if url:
+                        lines.append(f"- [{title}]({url})")
+                    else:
+                        lines.append(f"- {title}")
+                    if source:
+                        lines.append(f"  - 来源：{source}")
+                lines.append("")
+    elif articles:
         lines.append("## 📰 RSS 资讯")
         lines.append("")
-        
-        # 按来源分组
         sources = {}
-        for article in articles[:20]:  # 最多显示 20 篇
+        for article in articles[:20]:
             source = article.get("source", "Unknown")
             if source not in sources:
                 sources[source] = []
@@ -78,7 +87,7 @@ def format_as_markdown(data: Dict) -> str:
         
         for source, source_articles in sources.items():
             lines.append(f"### {source}")
-            for article in source_articles[:5]:  # 每个来源最多 5 篇
+            for article in source_articles[:5]:
                 title = article.get("title", "无标题")
                 url = article.get("url", "")
                 summary = article.get("summary", "")[:100]
@@ -87,12 +96,11 @@ def format_as_markdown(data: Dict) -> str:
                     lines.append(f"- [{title}]({url})")
                 else:
                     lines.append(f"- {title}")
-                
                 if summary:
                     lines.append(f"  - {summary}...")
             lines.append("")
     
-    # YouTube 视频（如果有）
+    # YouTube 视频
     if videos:
         lines.append("## 🎬 YouTube 视频")
         lines.append("")
@@ -101,15 +109,6 @@ def format_as_markdown(data: Dict) -> str:
             title = video.get("title", "无标题")
             channel = video.get("channel", "Unknown")
             url = video.get("url", "")
-            transcript_preview = ""
-            
-            if "transcript" in video and video["transcript"]:
-                # 提取转录文本的前 200 字符
-                transcript_text = " ".join([
-                    seg.get("text", "") 
-                    for seg in video["transcript"][:3]
-                ])
-                transcript_preview = transcript_text[:200]
             
             if url:
                 lines.append(f"### [{title}]({url})")
@@ -117,11 +116,12 @@ def format_as_markdown(data: Dict) -> str:
                 lines.append(f"### {title}")
             
             lines.append(f"- **频道:** {channel}")
-            if transcript_preview:
-                lines.append(f"- **摘要:** {transcript_preview}...")
+            
+            if "transcript" in video and video["transcript"]:
+                transcript_text = " ".join([seg.get("text", "") for seg in video["transcript"][:3]])
+                lines.append(f"- **摘要:** {transcript_text[:200]}...")
             lines.append("")
     
-    # 页脚
     lines.append("---")
     lines.append("*由 OpenClaw 自动收集整理*")
     
@@ -136,31 +136,71 @@ def format_as_simple_markdown(data: Dict) -> str:
     lines.append(f"\n📅 {datetime.now().strftime('%Y-%m-%d %H:%M')}")
     lines.append("")
     
-    articles = data.get("articles", [])
+    # 支持两种数据结构
+    if "topics" in data:
+        articles = extract_articles_from_topics(data)
+        stats = data.get("output_stats", {})
+        lines.append(f"## 📊 共 {stats.get('total_articles', len(articles))} 篇文章 | {len(data.get('videos', []))} 个视频")
+    else:
+        articles = data.get("articles", [])
+        lines.append(f"## 📊 共 {len(articles)} 篇文章 | {len(data.get('videos', []))} 个视频")
+    
     videos = data.get("videos", [])
     
-    if articles:
-        lines.append(f"## 📊 收集到 {len(articles)} 篇文章")
+    # 按主题分组显示文章
+    if "topics" in data:
+        lines.append("")
+        topics = data.get("topics", {})
+        for topic_id, topic_data in topics.items():
+            topic_articles = topic_data.get("articles", [])[:5]
+            if topic_articles:
+                lines.append(f"## {topic_id.upper()}")
+                lines.append("")
+                for article in topic_articles:
+                    title = article.get("title", "无标题")
+                    url = article.get("link") or article.get("url", "")
+                    source = article.get("source_name", "")
+                    
+                    if url:
+                        lines.append(f"- [{title}]({url})")
+                    else:
+                        lines.append(f"- {title}")
+                    if source:
+                        lines.append(f"  - 来源：{source}")
+                lines.append("")
+    elif articles:
+        lines.append(f"\n## 📰 精选文章")
         lines.append("")
         
         for i, article in enumerate(articles[:10], 1):
             title = article.get("title", "无标题")
+            url = article.get("link") or article.get("url", "")
             source = article.get("source", "")
-            lines.append(f"{i}. {title}")
+            
+            if url:
+                lines.append(f"{i}. [{title}]({url})")
+            else:
+                lines.append(f"{i}. {title}")
             if source:
-                lines.append(f"   - 来源: {source}")
+                lines.append(f"   - 来源：{source}")
         lines.append("")
     
+    # YouTube 视频
     if videos:
-        lines.append(f"## 🎬 收集到 {len(videos)} 个视频")
+        lines.append("## 🎬 YouTube 视频")
         lines.append("")
         
         for video in videos:
             title = video.get("title", "无标题")
             channel = video.get("channel", "")
-            lines.append(f"- {title}")
+            url = video.get("url", "")
+            
+            if url:
+                lines.append(f"- [{title}]({url})")
+            else:
+                lines.append(f"- {title}")
             if channel:
-                lines.append(f"  - 频道: {channel}")
+                lines.append(f"  - 频道：{channel}")
         lines.append("")
     
     lines.append("\n---\n*OpenClaw 自动推送*")
@@ -180,15 +220,14 @@ def parse_json_file(file_path: str) -> Dict:
         return json.load(f)
 
 
-def send_via_webhook(webhook_url: str, message: str, msg_type: str = "text"):
-    """通过 Webhook 发送消息"""
+def send_via_webhook(webhook_url: str, message: str, msg_type: str = "post"):
+    """通过 Webhook 发送消息到飞书"""
     import requests
     
+    # 飞书开放平台 post 消息格式
     payload = {
-        "msg_type": "post" if msg_type == "markdown" else "text",
+        "msg_type": "post",
         "content": {
-            "post" if msg_type == "markdown" else "text": message
-        } if msg_type == "text" else {
             "post": {
                 "zh_cn": {
                     "title": "每日科技新闻摘要",
@@ -236,10 +275,10 @@ def main():
     
     # 读取文件
     if not os.path.exists(args.file):
-        print(f"❌ 文件不存在: {args.file}")
+        print(f"❌ 文件不存在：{args.file}")
         sys.exit(1)
     
-    print(f"📄 读取文件: {args.file}")
+    print(f"📄 读取文件：{args.file}")
     
     # 格式化消息
     if args.type == "json":
@@ -267,10 +306,10 @@ def main():
         print(f"\n📤 发送消息到飞书...")
         
         try:
-            result = send_via_webhook(args.webhook, message, "markdown")
-            print(f"✅ 发送成功: {result}")
+            result = send_via_webhook(args.webhook, message, "post")
+            print(f"✅ 发送成功：{result}")
         except Exception as e:
-            print(f"❌ 发送失败: {e}")
+            print(f"❌ 发送失败：{e}")
             sys.exit(1)
 
 
