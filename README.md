@@ -12,11 +12,11 @@
 
 - **支持多平台**：B 站 + YouTube 视频
 - **智能字幕获取**：
-  - YouTube：优先使用官方字幕（更快）
+  - YouTube：优先使用官方字幕（Supadata API，5-10 秒）
   - B 站：使用 Whisper 语音转录（无官方字幕）
 - **智能笔记生成**：使用 GLM-4-Flash 生成结构化学习笔记
 - **自动上传飞书**：将笔记自动上传到飞书文档指定节点
-- **支持无字幕视频**：即使没有官方字幕也能处理
+- **自动识别来源**：根据 URL 自动判断使用哪种处理策略
 
 ---
 
@@ -28,13 +28,14 @@
 - 虚拟环境（用于 Whisper）
 - B 站 Cookies（用于下载音频）
 - GLM API Key（智谱 AI）
+- Supadata API Key（YouTube 转录，可选）
 - 飞书文档权限
 
 ### 安装步骤
 
 1. **克隆项目**
 ```bash
-git clone https://github.com/yourusername/bilibili-video-processor.git
+git clone https://github.com/jioup777/bilibili-video-processor.git
 cd bilibili-video-processor
 ```
 
@@ -54,11 +55,14 @@ pip install -r requirements.txt
 ```bash
 cp config/glm-config.example.json config/glm-config.json
 # 编辑 config/glm-config.json，填入你的 GLM API Key
+
+cp config/supadata-config.example.json config/supadata-config.json
+# 编辑 config/supadata-config.json，填入你的 Supadata API Key（可选）
 ```
 
 5. **配置 B 站 Cookies**
 ```bash
-# 将 cookies.txt 放到项目根目录或 ~/.openclaw/workspace/skills/bilibili-study/cookies.txt
+# 将 cookies.txt 放到项目根目录
 # Cookies 获取方法见 docs/cookies.md
 ```
 
@@ -67,42 +71,48 @@ cp config/glm-config.example.json config/glm-config.json
 #### 方式 1：命令行使用
 
 ```bash
-# 处理 B 站视频
+# 处理 B 站视频（自动识别）
 python src/main.py --url "https://www.bilibili.com/video/BVxxxxx"
 
-# 处理 YouTube 视频
-python src/youtube_processor.py "https://www.youtube.com/watch?v=xxxxx"
+# 处理 YouTube 视频（自动识别）
+python src/main.py --url "https://www.youtube.com/watch?v=xxxxx"
 
 # 处理视频并指定飞书节点
-python src/main.py --url "https://www.bilibili.com/video/BVxxxxx" \
-  --feishu-parent-token "I1GtwmgL4iok6WkfOghcR1uwnld" \
-  --feishu-space-id "7566441763399581724"
+python src/main.py --url "视频链接" \
+  --feishu-parent-token "YOUR_TOKEN" \
+  --feishu-space-id "YOUR_SPACE_ID"
 ```
 
 #### 方式 2：作为 OpenClaw Skill 使用
 
 在 OpenClaw 中直接说：
 ```
-帮我分析这个 B 站视频：https://www.bilibili.com/video/BVxxxxx
+帮我分析这个视频：https://www.bilibili.com/video/BVxxxxx
 ```
 
-系统会自动完成所有步骤。
+或：
+```
+处理这个 YouTube 视频：https://www.youtube.com/watch?v=xxxxx
+```
+
+系统会自动识别来源并完成所有步骤。
 
 #### 方式 3：Python 代码调用
 
 ```python
-from src.processor import BilibiliVideoProcessor
+from src.processor import VideoProcessor
 
-processor = BilibiliVideoProcessor(
-    glm_api_key="your_api_key",
+processor = VideoProcessor(
+    glm_api_key="your_glm_api_key",
+    supadata_api_key="your_supadata_api_key",  # 可选
     cookies_path="path/to/cookies.txt"
 )
 
-# 处理视频
+# 处理视频（自动识别来源）
 result = processor.process(
-    video_url="https://www.bilibili.com/video/BVxxxxx",
+    video_url="https://www.youtube.com/watch?v=xxxxx",
     upload_to_feishu=True,
-    feishu_parent_token="I1GtwmgL4iok6WkfOghcR1uwnld"
+    feishu_parent_token="YOUR_TOKEN"
 )
 
 print(f"笔记已生成：{result['feishu_url']}")
@@ -120,11 +130,13 @@ bilibili-video-processor/
 ├── LICENSE                   # 开源协议
 ├── config/
 │   ├── glm-config.example.json  # GLM 配置示例
+│   ├── supadata-config.example.json # Supadata 配置示例
 │   └── feishu-config.example.json # 飞书配置示例
 ├── src/
 │   ├── main.py               # 主入口
 │   ├── downloader.py         # 音频下载
 │   ├── transcriber.py        # Whisper 转录
+│   ├── youtube_processor.py  # YouTube 处理
 │   ├── summarizer.py         # GLM 笔记生成
 │   └── uploader.py           # 飞书上传
 ├── docs/
@@ -146,7 +158,7 @@ bilibili-video-processor/
 编辑 `config/glm-config.json`：
 ```json
 {
-  "api_key": "your_glm_api_key",
+  "api_key": "YOUR_GLM_API_KEY",
   "model": "glm-4-Flash",
   "enabled": true
 }
@@ -154,13 +166,28 @@ bilibili-video-processor/
 
 获取 API Key：https://open.bigmodel.cn/
 
+### Supadata API 配置（YouTube）
+
+编辑 `config/supadata-config.json`：
+```json
+{
+  "api_key": "YOUR_SUPADATA_API_KEY",
+  "base_url": "https://api.supadata.ai/v1",
+  "plan": "Free (100/mo)"
+}
+```
+
+- 注册：https://supadata.ai
+- 免费额度：100 credits/月
+- 监控面板：https://dash.supadata.ai
+
 ### 飞书文档配置
 
 编辑 `config/feishu-config.json`：
 ```json
 {
-  "space_id": "7566441763399581724",
-  "parent_node_token": "I1GtwmgL4iok6WkfOghcR1uwnld",
+  "space_id": "YOUR_SPACE_ID",
+  "parent_node_token": "YOUR_PARENT_NODE_TOKEN",
   "enabled": true
 }
 ```
@@ -175,10 +202,10 @@ bilibili-video-processor/
 
 ## 📊 性能数据
 
-| 视频时长 | 下载 | 转录 | 生成 | 上传 | 总计 |
-|---------|------|------|------|------|------|
-| 3 分钟 | 10s | 60s | 5s | 3s | ~80s |
-| 12 分钟 | 30s | 180s | 10s | 5s | ~230s |
+| 来源 | 转录方式 | 转录速度 | 总耗时 | 费用 |
+|------|---------|---------|--------|------|
+| B 站 | Whisper | 60-180s | ~80-230s | 免费 |
+| YouTube | Supadata | 5-10s | ~15s | 1 credit |
 
 **Token 消耗**：
 - 3 分钟视频：~3000 tokens（约 0.003 元）
@@ -200,7 +227,8 @@ bilibili-video-processor/
 1. **必须使用虚拟环境**：Whisper 需要特定的 Python 环境
 2. **Cookies 有效期**：B 站 Cookies 会过期，需定期更新
 3. **API 额度**：GLM API 有免费额度，超出后需付费
-4. **网络环境**：需要能访问 B 站和智谱 AI API
+4. **Supadata 额度**：YouTube 转录消耗 1 credit/视频
+5. **网络环境**：需要能访问 B 站、YouTube 和智谱 AI API
 
 ---
 
@@ -218,7 +246,14 @@ bilibili-video-processor/
 
 ## 📝 更新日志
 
-### v1.0.0 (2026-03-08)
+### v1.1.0 (2026-03-08)
+- ✨ 新增 YouTube 视频支持（Supadata API）
+- ✨ 自动识别视频来源（B 站/YouTube）
+- ✨ 智能选择处理策略
+- ⚡ YouTube 处理速度提升 10 倍（5-10 秒）
+- 📝 更新 SKILL.md，支持多平台
+
+### v1.0.0 (2026-03-07)
 - ✨ 初始版本发布
 - ✅ 支持 B 站视频音频下载
 - ✅ 支持 Whisper 语音转录
@@ -238,14 +273,15 @@ bilibili-video-processor/
 - [OpenClaw](https://openclaw.ai) - AI 助手框架
 - [Whisper](https://github.com/openai/whisper) - 语音识别模型
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) - 视频下载工具
+- [Supadata](https://supadata.ai) - YouTube 字幕 API
 - [智谱 AI](https://open.bigmodel.cn/) - GLM 模型提供方
 
 ---
 
 ## 📮 联系方式
 
-- 项目地址：https://github.com/yourusername/bilibili-video-processor
-- 问题反馈：https://github.com/yourusername/bilibili-video-processor/issues
+- 项目地址：https://github.com/jioup777/bilibili-video-processor
+- 问题反馈：https://github.com/jioup777/bilibili-video-processor/issues
 - OpenClaw 社区：https://discord.com/invite/clawd
 
 ---

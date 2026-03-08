@@ -1,0 +1,12 @@
+{
+  "api_key": "YOUR_SUPADATA_API_KEY_HERE",
+  "base_url": "https://api.supadata.ai/v1",
+  "plan": "Free (100/mo)",
+  "max_credits": 100,
+  "notes": [
+    "注册：https://supadata.ai",
+    "免费额度：100 credits/月",
+    "监控面板：https://dash.supadata.ai",
+    "YouTube 转录消耗：1 credit/视频"
+  ]
+}
