@@ -1,0 +1,9 @@
+{
+  "space_id": "YOUR_SPACE_ID_HERE",
+  "parent_node_token": "YOUR_PARENT_NODE_TOKEN_HERE",
+  "enabled": true,
+  "notes": [
+    "获取 Space ID: 打开飞书知识库，URL 中的 /wiki/ 后面的部分",
+    "获取 Parent Node Token: 打开目标父节点文档，URL 中的 /wiki/ 后面的部分"
+  ]
+}

@@ -1,0 +1,16 @@
+# B 站视频处理器依赖
+
+# 核心依赖
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# 视频下载
+yt-dlp>=2024.1.0
+
+# 语音识别（在虚拟环境中安装）
+# openai-whisper>=20231117  # 需要在虚拟环境中单独安装
+
+# 注意：Whisper 需要在虚拟环境中安装
+# 创建虚拟环境：python3 -m venv venv
+# 激活环境：source venv/bin/activate
+# 安装 Whisper：pip install openai-whisper

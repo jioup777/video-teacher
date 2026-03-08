@@ -1,0 +1,10 @@
+{
+  "api_key": "YOUR_GLM_API_KEY_HERE",
+  "model": "glm-4-Flash",
+  "enabled": true,
+  "notes": [
+    "获取 API Key: https://open.bigmodel.cn/",
+    "免费额度：约 100 万 tokens/月",
+    "超出后按量计费"
+  ]
+}
