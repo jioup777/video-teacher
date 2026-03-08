@@ -135,10 +135,10 @@ merge_sources() {
 }
 
 # ============================================
-# 4. 生成摘要（GLM-4.7）
+# 4. 生成中文摘要（GLM-4-Flash）
 # ============================================
 generate_summary() {
-    log_section "📝 生成摘要"
+    log_section "📝 生成中文摘要"
     
     cd $WORKSPACE
     
@@ -147,13 +147,25 @@ generate_summary() {
         return 1
     fi
     
-    # 摘要生成由推送脚本处理，这里只做数据验证
-    if [ -f $MERGED_OUTPUT ]; then
-        log "✅ 数据准备完成，将由推送脚本格式化"
-        # 将合并数据复制为摘要输出（推送脚本会处理格式）
-        cp $MERGED_OUTPUT $SUMMARY_OUTPUT
+    # 使用 GLM-4-Flash 翻译为中文
+    if [ -f $SCRIPTS_DIR/translate-digest.py ]; then
+        log "🔄 调用 GLM-4-Flash 翻译..."
+        python3 $SCRIPTS_DIR/translate-digest.py \
+            $MERGED_OUTPUT \
+            --output $SUMMARY_OUTPUT \
+            --format markdown
+        
+        if [ $? -eq 0 ]; then
+            log "✅ 中文摘要生成成功"
+            log "📄 摘要文件: $SUMMARY_OUTPUT"
+        else
+            log "⚠️ 翻译失败，使用英文版"
+            cp $MERGED_OUTPUT $SUMMARY_OUTPUT
+        fi
     else
-        log "⚠️ 没有合并数据"
+        log "⚠️ 翻译脚本不存在，使用原始数据"
+        cp $MERGED_OUTPUT $SUMMARY_OUTPUT
+    fi
 }
 
 # ============================================
