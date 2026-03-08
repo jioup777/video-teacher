@@ -1,0 +1,6 @@
+{
+  "webhook_url": "https://open.feishu.cn/open-apis/bot/v2/hook/0f69ce39-2e52-41b3-8a04-dbb76959964c",
+  "enabled": true,
+  "message_type": "markdown",
+  "format": "simple"
+}
