@@ -57,7 +57,7 @@ def transcribe_audio(
         whisper_cmd,
         audio_path,
         "--language", "Chinese",
-        "--model", "base",
+        "--model", "small",
         "--output_dir", output_dir,
         "--output_format", "txt"
     ]

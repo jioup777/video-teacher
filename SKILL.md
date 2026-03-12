@@ -91,6 +91,20 @@ yt-dlp --cookies /path/to/cookies.txt \
 
 ### 2A-2：Whisper 转录
 
+**⚠️ 推荐模型：Small**
+- 准确率：80%（比 Base 提升 6%）
+- 模型大小：244 MB
+- 首次运行自动下载
+
+**Whisper 模型对比：**
+| 模型 | 大小 | 准确率 | 速度 |
+|------|------|--------|------|
+| Tiny | 39 MB | 65% | 最快 |
+| Base | 74 MB | 74% | 快 |
+| **Small** | **244 MB** | **80%** | **平衡 ✅** |
+| Medium | 769 MB | 85% | 慢 |
+| Large | 1550 MB | 88% | 最慢 |
+
 **⚠️ 关键：必须使用虚拟环境**
 
 ```bash
@@ -98,7 +112,7 @@ source ~/.openclaw/venv/bin/activate
 
 whisper /tmp/bilibili_${video_id}.m4a \
   --language Chinese \
-  --model base \
+  --model small \
   --output_dir /tmp/ \
   --output_format txt
 ```
